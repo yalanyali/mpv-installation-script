@@ -108,25 +108,12 @@ function Download-Config ($version) {
     Invoke-WebRequest -Uri $link -UserAgent [Microsoft.PowerShell.Commands.PSUserAgent]::FireFox -OutFile "mpv-config.zip"
 }
 
-function Extract-Mpv ($file) {
+function Extract-Archive ($file) {
+    Check-7z
     $7za = (Get-Location).Path + "\7z\7za.exe"
     Write-Host "Extracting" $file -ForegroundColor Green
     & $7za x -y $file
     Remove-Item -Force $file
-}
-
-function Extract-Scripts {
-    $7za = (Get-Location).Path + "\7z\7za.exe"
-    Write-Host "Extracting mpv-scripts.zip" -ForegroundColor Green
-    & $7za x -y mpv-scripts.zip
-    Remove-Item -Force mpv-scripts.zip
-}
-
-function Extract-Config {
-    $7za = (Get-Location).Path + "\7z\7za.exe"
-    Write-Host "Extracting mpv-config.zip" -ForegroundColor Green
-    & $7za x -y mpv-config.zip
-    Remove-Item -Force mpv-config.zip
 }
 
 function Get-Latest-Mpv($Arch) {
@@ -228,22 +215,22 @@ function Upgrade-Mpv {
         $remoteName = Get-Latest-Mpv $arch
         if ((ExtractGitFromFile) -match (ExtractGitFromURL $remoteName))
         {
-            Write-Host "You are already using latest mpv build -- $remoteName" -ForegroundColor Green
+            Write-Host "You are already using the latest mpv build -- $remoteName" -ForegroundColor Green
             $need_download = $false
         }
         else {
-            Write-Host "Newer mpv build available" -ForegroundColor Green
+            Write-Host "A newer mpv build is available" -ForegroundColor Green
             $need_download = $true
         }
     }
     else {
         $need_download = $true
         if (Test-Path (Join-Path $env:windir "SysWow64")) {
-            Write-Host "Detecting System Type is 64-bit" -ForegroundColor Green
+            Write-Host "Detected system type is 64-bit" -ForegroundColor Green
             $arch = "x86_64"
         }
         else {
-            Write-Host "Detecting System Type is 32-bit" -ForegroundColor Green
+            Write-Host "Detected system type is 32-bit" -ForegroundColor Green
             $arch = "i686"
         }
         $remoteName = Get-Latest-Mpv $arch
@@ -252,11 +239,11 @@ function Upgrade-Mpv {
     if ($need_download) {
         Download-Mpv $remoteName
         $global:mpvInstalled = $true
-        Check-7z
-        Extract-Mpv $remoteName
+        Extract-Archive $remoteName
         New-Item -ItemType Directory -Force -Path tools
         Move-Item -Force installer/mpv-install.bat tools/mpv-register-types.bat
         Move-Item -Force installer/mpv-uninstall.bat tools/mpv-unregister-types.bat
+        Move-Item -Force installer/mpv-icon.ico tools/mpv-icon.ico
         Remove-Item -Force -R installer
         Remove-Item -Force updater.bat
     }
@@ -305,8 +292,7 @@ function Upgrade-Scripts {
 
     if ($need_download) {
         Download-Scripts $latest_release
-        Check-7z
-        Extract-Scripts
+        Extract-Archive "mpv-scripts.zip"
     }
 }
 
@@ -330,8 +316,7 @@ function Upgrade-Config {
 
     if ($need_download) {
         Download-Config $latest_release
-        Check-7z
-        Extract-Config
+        Extract-Archive "mpv-config.zip"
     }
 }
 
@@ -358,11 +343,15 @@ try {
     if (Test-Path 7z) {
         Remove-Item -Force -R 7z
     }
-    Write-Host "Operation completed" -ForegroundColor Magenta
-    if ($mpvInstalled) {
-        Write-Host "Use `"mpv-register-types.bat`" in the `"tools`" folder to register media file extensions with mpv." -ForegroundColor Green
+    if (!$mpvInstalled) {
+        Write-Host "Press ENTER to register media file extensions with mpv." -ForegroundColor Red
+        $k = [System.Console]::ReadKey($true).Key.ToString()
+        if ($k -eq "Enter") {
+            Start-Process "cmd.exe" "/c .\tools\mpv-register-types.bat"
+        }
     }
-    Write-Host "Press ENTER to exit..."
+    Write-Host "Operation completed" -ForegroundColor Magenta
+    Write-Host "Press any key to exit..."
     $x = $host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
 }
 catch [System.Exception] {
