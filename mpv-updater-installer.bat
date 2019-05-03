@@ -343,7 +343,7 @@ try {
     if (Test-Path 7z) {
         Remove-Item -Force -R 7z
     }
-    if (!$mpvInstalled) {
+    if ($mpvInstalled) {
         Write-Host "Press ENTER to register media file extensions with mpv." -ForegroundColor Red
         $k = [System.Console]::ReadKey($true).Key.ToString()
         if ($k -eq "Enter") {
